@@ -4,6 +4,7 @@ An silverstripe dropdown which loads results via ajax to handle large datasets
 ## Example usage (I'll document this better later)
 
 ```php
+// Define a callback to load the results, don't worry about pagination of limiting here
 $dataSource = function ($term = null) {
     return SomeDataObject::get()->filter(['Title:PartialMatch' => $term]);
 };
@@ -22,3 +23,9 @@ $field->setMinLength(1);        // Set the number of characters that must be ent
 $field->setPageLength(150);     // Set the number of results that will be returned on each search or "load more"
 // Each of the above methods also has an associated "getter" e.g. $field->getPageLength();
 ```
+
+## Other Methods
+This field extends `DropdownField` so any methods you can call on there e.g. `setEmptyString()` will also work here.
+
+## Other Modules
+This field should work with most other modules, I have explicitly tested this with [sheadawson/silverstripe-quickaddnew](https://github.com/sheadawson/silverstripe-quickaddnew)

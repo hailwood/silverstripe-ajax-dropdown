@@ -22,7 +22,7 @@ class AjaxDropdownField extends DropdownField
         $this->addExtraClass('ajax-dropdown-field select2 no-chzn');
     }
 
-    public function getSource()
+    public function getSourceCallback()
     {
         if (!$this->suggestionCallback) {
             throw new Exception('Suggestion callback not defined');
@@ -66,12 +66,12 @@ class AjaxDropdownField extends DropdownField
 
     public function getTextColumn()
     {
-        return $this->IDColumn;
+        return $this->textColumn;
     }
 
     public function setTextColumn($column)
     {
-        $this->IDColumn = $column;
+        $this->textColumn = $column;
         return $this;
     }
 
@@ -114,6 +114,12 @@ class AjaxDropdownField extends DropdownField
         Requirements::javascript(AJAX_DROPDOWN_DIR . "/javascript/ajax-dropdown-field.js");
         Requirements::css(AJAX_DROPDOWN_DIR . "/css/ajax-dropdown-field.css");
 
+        if ($this->value) {
+            $suggestionFunction = $this->getSourceCallback();
+            $valueObject = DataObject::get($suggestionFunction()->dataClass())->find($this->getIDColumn(), $this->value);
+            $this->source = [$valueObject->{$this->getIDColumn()} => $valueObject->{$this->getTextColumn()}];
+        }
+
         return parent::Field($properties);
     }
 
@@ -123,7 +129,7 @@ class AjaxDropdownField extends DropdownField
         $pageNumber = $request->getVar('page') ?: 1;
 
         $pageSize           = $this->getPageLength();
-        $suggestionFunction = $this->getSource();
+        $suggestionFunction = $this->getSourceCallback();
         $suggestionResults  = [];
         $suggestionFunction($searchTerm)
             ->limit($pageSize, (($pageNumber - 1) * $pageSize))
@@ -140,6 +146,39 @@ class AjaxDropdownField extends DropdownField
         $response->setBody(json_encode(['items' => $suggestionResults]));
 
         return $response;
+    }
+
+    /**
+     * Validate this field
+     *
+     * @param Validator $validator
+     * @return bool
+     */
+    public function validate($validator)
+    {
+        $disabled = $this->getDisabledItems();
+
+        if ($this->getHasEmptyDefault() && !$this->value) {
+            return true;
+        }
+
+        $suggestionFunction = $this->getSourceCallback();
+        $valueObject        = DataObject::get($suggestionFunction()->dataClass())->find($this->getIDColumn(), $this->value);
+
+        if (!$valueObject || in_array($this->value, $disabled)) {
+
+            $validator->validationError(
+                $this->name,
+                _t(
+                    'DropdownField.SOURCE_VALIDATION',
+                    "Please select a value within the list provided. {value} is not a valid option",
+                    array('value' => $this->value)
+                ),
+                "validation"
+            );
+            return false;
+        }
+        return true;
     }
 
 }
